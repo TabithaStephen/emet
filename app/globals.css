@@ -1,26 +1,51 @@
 @import "tailwindcss";
 
+/*
+  êmet — "Midnight Luxury" design tokens.
+  Single source of truth for colour. Components must use the token names
+  (bg-surface, text-accent, ...) and never raw hex values.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  /* Canvas */
+  --background: #0b1120;
+  --background-secondary: #101827;
+
+  /* Panels */
+  --surface: #151e2e;
+  --surface-elevated: #1c293b;
+
+  /* Accents */
+  --accent: #c8aa72; /* champagne gold — reserve for emphasis, never fill large areas */
+  --silver: #aab4c3; /* cool silver */
+
+  /* Type */
+  --foreground: #f3f0e8;
+  --foreground-muted: #929eaf;
+
+  /* Lines */
+  --border: #1c293b;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-accent: var(--accent);
+  --color-silver: var(--silver);
   --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
