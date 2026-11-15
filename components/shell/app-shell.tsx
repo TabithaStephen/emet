@@ -27,10 +27,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  // The sign-in screen stands alone: no sidebar and no top bar until there is
-  // a session. Hooks above still run unconditionally, so this early return is
-  // safe for the rules of hooks.
-  if (pathname === "/login") {
+  // The public screens stand alone: no sidebar and no top bar. Hooks above
+  // still run unconditionally, so this early return is safe for the rules of
+  // hooks.
+  if (pathname === "/login" || pathname === "/welcome" || pathname === "/demo") {
     return <>{children}</>;
   }
 

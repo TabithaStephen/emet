@@ -15,8 +15,18 @@ import { SESSION_COOKIE, decodeSession } from "@/lib/auth-shared";
  * solution". Real protection belongs on the server beside the data.
  */
 
-/** Reachable without a session. */
-const PUBLIC_PATHS = ["/login"];
+/**
+ * Reachable without a session.
+ *
+ * `/welcome` and `/login` bounce a signed-in visitor onward to their own
+ * workspace — there is no reason to show them a front door they are already
+ * through. `/demo` is in OPEN_PATHS instead, because a signed-in user should
+ * still be able to walk the demo, for instance to show it to someone.
+ */
+const PUBLIC_PATHS = ["/welcome", "/login"];
+
+/** Public, and never redirected away from, signed in or not. */
+const OPEN_PATHS = ["/demo"];
 
 function landingFor(role: string): string {
   return role === "approver" ? "/approvals" : "/";
@@ -26,7 +36,12 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const session = decodeSession(request.cookies.get(SESSION_COOKIE)?.value);
 
-  // Already signed in and visiting /login: send them to their own workspace.
+  // The guided demo is open to everyone, in either state.
+  if (OPEN_PATHS.includes(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Already signed in and visiting the front door: go to the workspace.
   if (PUBLIC_PATHS.includes(pathname)) {
     if (session) {
       return NextResponse.redirect(new URL(landingFor(session.role), request.url));
@@ -48,9 +63,15 @@ export function proxy(request: NextRequest) {
       );
     }
 
+    // The bare root is a visitor arriving at the domain: show them the choice
+    // between signing in and the guided demo. A deeper link is someone who
+    // wants the app itself, so send them straight to sign-in and remember where
+    // they were going.
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL("/welcome", request.url));
+    }
     const url = new URL("/login", request.url);
-    // Remember where they were headed, so sign-in can return them there.
-    if (pathname !== "/") url.searchParams.set("next", pathname);
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
