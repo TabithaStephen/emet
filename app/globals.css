@@ -27,6 +27,23 @@
 
   /* Lines */
   --border: #1c293b;
+
+  /* ---- Data-visualisation palette: "Midnight Luxe" --------------------
+     These are deliberately MORE chromatic than the UI chrome above. The
+     earlier muted set measured 0.024–0.093 chroma, under the 0.08 floor at
+     which a hue stops reading as colour at all, so charts looked grey.
+     Measured against the panel surface, these all clear the floor and the
+     severity four pass the normal-vision separation check (worst pair 16.7).
+
+     `--accent` above stays the brand champagne gold for UI chrome — buttons,
+     eyebrows, nav, focus rings. `--gold` is its brighter sibling, for data
+     only. Roles are fixed: never swap a hue per chart. */
+  --critical: #f07878; /* coral     — critical findings, negative indicators */
+  --positive: #43c6a0; /* emerald   — positive performance, improvements */
+  --gold: #e0b967; /* champagne — primary data series, current period */
+  --activity: #789bfa; /* sapphire  — activity and volume series */
+  --analysis: #b18ae8; /* amethyst  — secondary analytical series */
+  --turquoise: #53c2d1; /* turquoise — ramp partner for sapphire */
 }
 
 @theme inline {
@@ -39,13 +56,62 @@
   --color-foreground: var(--foreground);
   --color-foreground-muted: var(--foreground-muted);
   --color-border: var(--border);
+  --color-critical: var(--critical);
+  --color-positive: var(--positive);
+  --color-gold: var(--gold);
+  --color-activity: var(--activity);
+  --color-analysis: var(--analysis);
+  --color-turquoise: var(--turquoise);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display-serif);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Quiet, premium chrome ------------------------------------------------- */
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+  color: var(--foreground);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-elevated) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--surface-elevated);
+  border: 3px solid var(--background);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus ring: gold hairline, never a browser default blue. */
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

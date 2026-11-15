@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <rect width="1200" height="420" fill="#FFFFFF"/>
+  
+    <g>
+      <ellipse cx="196" cy="196" rx="104" ry="64.48"
+               fill="none" stroke="#2BB3A3" stroke-width="9"
+               transform="rotate(-22 196 196)" />
+      <path d="M 196 152.32 Q 201.72 190.28 239.68 196 Q 201.72 201.72 196 239.68 Q 190.28 201.72 152.32 196 Q 190.28 190.28 196 152.32 Z" fill="#2BB3A3" />
+    </g>
+  <text x="360" y="222" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="124" font-weight="500"
+        fill="#10233F" letter-spacing="-1">NovaTech</text>
+  <text x="362" y="286" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="30" font-weight="400"
+        fill="#5A6B82" letter-spacing="7.5">TECHNOLOGY THAT MOVES YOU</text>
+</svg>

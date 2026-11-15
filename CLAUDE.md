@@ -27,14 +27,63 @@ Colour tokens live in `app/globals.css`. **Use the token names, never raw hex.**
 | `foreground` | `#F3F0E8` | Primary text |
 | `foreground-muted` | `#929EAF` | Secondary text |
 | `border` | `#1C293B` | Hairline rules |
+| `critical` | `#F07878` | Coral — critical findings, negative indicators |
+| `positive` | `#43C6A0` | Emerald — positive performance, improvements |
+| `gold` | `#E0B967` | Champagne — primary data series, current period |
+| `activity` | `#789BFA` | Sapphire — activity and volume series |
+| `analysis` | `#B18AE8` | Amethyst — secondary analytical series |
+| `turquoise` | `#53C2D1` | Ramp partner for sapphire |
 
-Principles: elegant typography and strong hierarchy · generous whitespace ·
-minimal structured layouts · subtle borders and restrained shadows ·
-refined, low-key transitions · consistent components and spacing ·
-responsive on desktop and mobile.
+`accent` (`#C8AA72`) is the brand gold for UI chrome — buttons, eyebrows, nav,
+focus rings. `gold` (`#E0B967`) is its brighter sibling, for **data only**.
+Chart roles are fixed: never reassign a hue per chart, or a reader who learned
+"sapphire means volume" is misled when it means something else elsewhere.
 
-Avoid: generic dashboards, overcrowded cards, heavy gradients, neon colour,
-gratuitous animation, decorative filler.
+### Why the data palette is brighter than the UI
+
+Chroma below 0.08 stops reading as colour at all. The first chart palette
+measured 0.024–0.093 and genuinely looked grey; these all clear the floor.
+
+Measured against the panel surface (`#151E2E`), OKLab ΔE×100, floor 15:
+
+- **Severity four (coral / champagne / sapphire / emerald): PASSES**, worst
+  pair 16.7. The earlier muted set managed only 11.0.
+- One caveat: coral ↔ emerald is ΔE 5.7 under deuteranopia — the classic
+  red/green confusion. So severity is **always** paired with its written
+  label, and the donut ships a legend with counts and percentages.
+- `silver` is intentionally near-neutral (chroma 0.024). Use it for neutral
+  data only, never as a category hue.
+
+Rules that follow:
+- Severity never travels on colour alone — always a label beside it.
+- Part-to-whole: donut with a legend carrying name, count and percentage.
+- One hue per row when categories are compared, assigned in fixed order and
+  **never cycled**; past the palette's end, fall back to silver.
+- Every chart keeps its table view, so no value needs colour to be read.
+
+## Phase 2 — real AI
+
+- **Gemini**, via the official `@google/genai` SDK. Server-side only, in
+  `app/api/audit/route.ts`. The key is read from `GEMINI_API_KEY` in
+  `.env.local` and never reaches the client; the page passes down only a
+  boolean and the model name.
+- Model from `GEMINI_MODEL`, default `gemini-3.8-flash`. **Never use
+  `gemini-2.5-*`** — deprecated, auto-routes elsewhere from 1 Dec 2026.
+- Structured output uses `responseJsonSchema` (not `responseSchema`, which is
+  the older field) with `responseMimeType: "application/json"`. Read the reply
+  from `response.text` as a property, not a method.
+- **A model response is untrusted input.** `lib/ai/contract.ts` revalidates
+  every field, drops unusable findings, and caps sizes. Never render it raw.
+- **The score is computed here, never asked of the model** —
+  `scoreFromFindings` plus `explainScore` in `lib/audit-engine.ts`. A language
+  model cannot give a reproducible number, and the dial must move predictably
+  when a reviewer dismisses a finding.
+- **Never fake an AI audit.** With no key the UI shows setup instructions. The
+  local rule engine stays available but is explicitly labelled "not AI".
+- Persistence is `localStorage` only: `lib/brand-store.ts` for the Brand DNA,
+  `lib/audit-store.ts` for audit history and review state. Per-browser, no
+  database, no auth. Both use `useSyncExternalStore`, not context + effects,
+  because the lint rules forbid setState inside an effect.
 
 ## Engineering guidelines
 
