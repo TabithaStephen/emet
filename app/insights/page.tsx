@@ -11,7 +11,6 @@ import {
   CHANNEL_TONES,
   DEMO_SCORE_TREND,
   deriveSeverityTotals,
-  issueDeltas,
   totalFindings,
   trendDelta,
 } from "@/lib/analytics-data";
@@ -22,6 +21,10 @@ import {
 } from "@/lib/demo-data";
 import type { ChartTone } from "@/components/charts/sparkline";
 import { useAudits } from "@/lib/audit-store";
+import { buildHistoryInsights } from "@/lib/history/insights";
+import { ButtonLink } from "@/components/ui/button";
+import Link from "next/link";
+import { useMemo } from "react";
 import { SEVERITY_ORDER, type Severity } from "@/lib/types";
 
 /** Short written read beneath a visualisation. */
@@ -49,6 +52,18 @@ const FALLBACK_TONE: ChartTone = "silver";
 export default function InsightsPage() {
   const audits = useAudits();
   const hasReal = audits.length > 0;
+
+  /*
+   * Improvement figures measured from stored audits.
+   *
+   * This section used to be illustrative sample history, because nothing
+   * recorded how a piece of content changed between reviews. Audit history now
+   * does, so the real numbers replace the sample as soon as any content has
+   * been audited more than once — and until then the section says exactly what
+   * is missing rather than showing a demo series dressed as measurement.
+   */
+  const history = useMemo(() => buildHistoryInsights(audits), [audits]);
+  const hasProgress = history.progress.length > 0;
 
   // ---- figures derived from YOUR saved audits --------------------------
   const realSeverity = SEVERITY_ORDER.reduce(
@@ -136,13 +151,8 @@ export default function InsightsPage() {
     channelsByScore[0].averageScore -
     channelsByScore[channelsByScore.length - 1].averageScore;
 
-  const deltas = issueDeltas();
-  const improving = deltas.filter((d) => d.improving);
-  const worsening = deltas.filter((d) => d.change > 0);
-  const bestImprovement = [...improving].sort(
-    (a, b) => a.percentChange - b.percentChange,
-  )[0];
-  const netChange = deltas.reduce((sum, d) => sum + d.change, 0);
+  // The "what is improving" section now measures real audit history, so the
+  // sample period-on-period deltas it used to read are no longer computed.
 
   return (
     <div className="space-y-12">
@@ -482,53 +492,169 @@ export default function InsightsPage() {
         <PanelHeader
           eyebrow="Direction of travel"
           title="What is improving"
-          description="Each rule's findings this period against the one before. This section is illustrative sample history: real period-on-period tracking needs audits stored server-side, which is a later phase."
-          action={<DemoTag>Demo history</DemoTag>}
+          description={
+            hasProgress
+              ? "Measured from your own audit history: the first and latest audited version of each piece of content."
+              : "Comparing each piece of content against its own earlier versions."
+          }
+          action={
+            hasProgress ? (
+              <span className="inline-flex items-center gap-2 rounded-full border border-positive/35 bg-positive/10 px-2.5 py-1 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-positive">
+                <span className="h-1.5 w-1.5 rounded-full bg-positive" />
+                Your audits
+              </span>
+            ) : (
+              <DemoTag>Demo history</DemoTag>
+            )
+          }
         />
         <PanelBody>
-          <ul className="divide-y divide-border">
-            {[...deltas]
-              .sort((a, b) => a.percentChange - b.percentChange)
-              .map((delta) => (
+          {hasProgress ? (
+            <>
+              <ul className="divide-y divide-border">
+                {history.progress.map((row) => (
+                  <li
+                    key={row.lineageId}
+                    className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-4 first:pt-0 last:pb-0"
+                  >
+                    <span className="min-w-0 flex-1 basis-56">
+                      <span className="block truncate text-sm text-foreground">
+                        {row.title}
+                      </span>
+                      <span className="mt-1 block text-xs text-foreground-muted">
+                        {row.versions} versions · {row.resolved} resolved ·{" "}
+                        {row.persistent} still present · {row.introduced} new
+                        {row.attributable
+                          ? ""
+                          : " · brand rules changed between versions"}
+                      </span>
+                    </span>
+                    <span className="text-xs tabular-nums text-foreground-muted">
+                      {row.firstScore} → {row.latestScore}
+                    </span>
+                    <span
+                      className={`flex w-24 items-center justify-end gap-1.5 text-sm tabular-nums ${
+                        !row.attributable
+                          ? "text-foreground-muted"
+                          : row.delta > 0
+                            ? "text-positive"
+                            : row.delta < 0
+                              ? "text-critical"
+                              : "text-foreground-muted"
+                      }`}
+                    >
+                      {row.attributable ? (
+                        <>
+                          <span aria-hidden>
+                            {row.delta > 0 ? "▲" : row.delta < 0 ? "▼" : "—"}
+                          </span>
+                          {row.delta > 0 ? "+" : ""}
+                          {row.delta}
+                        </>
+                      ) : (
+                        "n/a"
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <Interpretation>
+                {history.improved} of {history.improved + history.regressed + history.unchanged}{" "}
+                revised {history.improved + history.regressed + history.unchanged === 1 ? "piece" : "pieces"}{" "}
+                improved, {history.regressed} regressed
+                {history.meanDelta !== null ? (
+                  <>
+                    , a mean change of {history.meanDelta > 0 ? "+" : ""}
+                    {history.meanDelta} points
+                  </>
+                ) : null}
+                .{" "}
+                {history.unattributable > 0 ? (
+                  <>
+                    {history.unattributable}{" "}
+                    {history.unattributable === 1 ? "piece is" : "pieces are"}{" "}
+                    excluded from those figures because the Brand DNA changed
+                    between versions, so the score moved for reasons other than
+                    the writing.{" "}
+                  </>
+                ) : null}
+                Every number here is counted from audits stored in this browser.
+              </Interpretation>
+            </>
+          ) : (
+            <div className="space-y-4 py-6">
+              <p className="text-sm leading-relaxed text-foreground">
+                {hasReal
+                  ? `No content has been audited more than once yet, so there is nothing to measure improvement against. You have ${history.totalAudits} audit${history.totalAudits === 1 ? "" : "s"}, each of a different piece.`
+                  : "No audits have been run in this browser yet."}
+              </p>
+              <p className="text-sm leading-relaxed text-foreground-muted">
+                To track improvement, revise a draft and run a second audit with{" "}
+                <span className="text-accent">Content version</span> set to “New
+                version of…”. êmet will then compare the two and show what was
+                resolved, what persists and what was introduced.
+              </p>
+              <ButtonLink href="/audit" variant="secondary" size="sm">
+                Go to the Audit Studio
+              </ButtonLink>
+            </div>
+          )}
+        </PanelBody>
+      </Panel>
+
+      {/* F. Recurring violations, measured ----------------------------------- */}
+      {history.recurring.length > 0 ? (
+        <Panel>
+          <PanelHeader
+            eyebrow="Repeat offenders"
+            title="Violations that keep coming back"
+            description="Rules breached in more than one separate audit, counted from your history. A rule broken twice in a single draft is not counted here."
+            action={
+              <span className="inline-flex items-center gap-2 rounded-full border border-positive/35 bg-positive/10 px-2.5 py-1 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-positive">
+                <span className="h-1.5 w-1.5 rounded-full bg-positive" />
+                Your audits
+              </span>
+            }
+          />
+          <PanelBody>
+            <ul className="divide-y divide-border">
+              {history.recurring.slice(0, 8).map((row) => (
                 <li
-                  key={delta.label}
-                  className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-4 first:pt-0 last:pb-0"
+                  key={`${row.guideline}-${row.rule}`}
+                  className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3.5 first:pt-0 last:pb-0"
                 >
-                  <span className="min-w-0 flex-1 basis-56 text-sm text-foreground">
-                    {delta.label}
+                  <span className="min-w-0 flex-1 basis-56">
+                    <span className="block truncate text-sm text-foreground">
+                      {row.rule}
+                    </span>
+                    <span className="mt-1 block text-xs text-foreground-muted">
+                      {row.guideline}
+                    </span>
                   </span>
                   <span className="text-xs tabular-nums text-foreground-muted">
-                    {delta.previous} → {delta.count}
-                  </span>
-                  <span
-                    className={`flex w-24 items-center justify-end gap-1.5 text-sm tabular-nums ${
-                      delta.improving ? "text-positive" : "text-critical"
-                    }`}
-                  >
-                    <span aria-hidden>{delta.improving ? "▼" : "▲"}</span>
-                    {delta.improving ? "" : "+"}
-                    {delta.percentChange}%
+                    {row.audits} audits · {row.occurrences} occurrences
                   </span>
                 </li>
               ))}
-          </ul>
+            </ul>
+            <Interpretation>
+              {history.recurring[0].rule} appears in {history.recurring[0].audits}{" "}
+              separate audits, the most of any rule. A rule that keeps returning
+              is usually worth fixing at the source — in the Brand DNA wording,
+              or in the brief given to writers — rather than one draft at a time.{" "}
+              <Link
+                href="/history"
+                className="text-accent underline decoration-dotted underline-offset-4"
+              >
+                Review the audits
+              </Link>
+              .
+            </Interpretation>
+          </PanelBody>
+        </Panel>
+      ) : null}
 
-          <Interpretation>
-            {improving.length} of {deltas.length} recurring issues fell this period and{" "}
-            {worsening.length}{" "}
-            {worsening.length === 1 ? "rose" : "rose"}, for a net change of{" "}
-            {netChange > 0 ? "+" : ""}
-            {netChange} findings.
-            {bestImprovement
-              ? ` The largest single improvement is ${bestImprovement.label.toLowerCase()}, down ${Math.abs(
-                  bestImprovement.percentChange,
-                )}% from ${bestImprovement.previous} to ${bestImprovement.count}.`
-              : " No rule improved this period."}{" "}
-            Directions are computed from the two counts shown on each row, from
-            illustrative sample data.
-          </Interpretation>
-        </PanelBody>
-      </Panel>
     </div>
   );
 }

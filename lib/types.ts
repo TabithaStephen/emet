@@ -214,17 +214,56 @@ export type ReviewStatus =
   | "approved"
   | "changes-requested";
 
-/** An audit persisted to this browser, with its review state. */
+/**
+ * An audit persisted to this browser, with its review state.
+ *
+ * Every field below `reviewNote` was added for audit history and version
+ * comparison, and every one of them is optional on purpose: records saved
+ * before that feature existed have none of them, and must keep loading and
+ * rendering exactly as they did. Code that reads them treats absence as
+ * "unknown", never as a mismatch.
+ */
 export interface SavedAudit {
   id: string;
   title: string;
   channel: string;
+  /**
+   * The content exactly as it was audited.
+   *
+   * Immutable once saved. The findings were computed against this text, so
+   * changing it would leave a record whose findings point at words that are no
+   * longer there. Editing a draft and re-auditing produces a new record
+   * instead.
+   */
   text: string;
   outcome: AuditOutcome;
   createdAt: string;
   status: ReviewStatus;
   reviewedAt: string | null;
   reviewNote: string | null;
+
+  /* ---- history and version comparison -------------------------------- */
+
+  /**
+   * Groups the versions of one piece of content. Chosen explicitly by the
+   * author when the audit is run — never inferred from the title, which is
+   * freely editable and would silently mis-pair unrelated drafts.
+   */
+  lineageId?: string;
+  /** Position within the lineage, counting from 1. */
+  version?: number;
+  /** Identity of `text`, so an unchanged revision can be told from a real one. */
+  contentHash?: string;
+  /**
+   * Identity of the Brand DNA this audit was judged against.
+   *
+   * Without it, a score that moved because somebody edited the brand rules
+   * would be indistinguishable from one that moved because the writing
+   * improved. Comparisons use it to refuse to claim credit they cannot prove.
+   */
+  brandHash?: string;
+  /** Who ran the audit, when a session was present. */
+  owner?: { email: string; name: string };
 }
 
 /* ---- visual brand compliance ------------------------------------------ */

@@ -14,8 +14,18 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 import { SEVERITY_LABEL, SEVERITY_VAR } from "@/components/ui/severity";
 import { auditContent, explainScore, scoreFromFindings } from "@/lib/audit-engine";
-import { newAuditId, saveAudit } from "@/lib/audit-store";
+import {
+  newAuditId,
+  newLineageId,
+  saveAudit,
+  submitAudit,
+  useAudits,
+  useStorageStatus,
+} from "@/lib/audit-store";
 import { useBrand } from "@/lib/brand-store";
+import { useSession } from "@/lib/auth";
+import { brandHashOf, contentHashOf } from "@/lib/history/fingerprint";
+import { lineagesOf, nextVersionFor, versionOf } from "@/lib/history/lineage";
 import { DEMO_SUBMISSION } from "@/lib/demo-data";
 import {
   SEVERITY_ORDER,
@@ -56,6 +66,9 @@ export function AuditStudio({
   model: string;
 }) {
   const { brand } = useBrand();
+  const audits = useAudits();
+  const storage = useStorageStatus();
+  const session = useSession();
 
   const [title, setTitle] = useState("Q4 partner letter — opening section");
   const [channel, setChannel] = useState(CHANNELS[0]);
@@ -69,6 +82,23 @@ export function AuditStudio({
   /** True once the draft has been edited since the audit that produced `outcome`. */
   const [stale, setStale] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+  /**
+   * The history record for the audit on screen.
+   *
+   * Written the moment an audit completes, so a finished audit is never lost
+   * just because it was not submitted. Submitting updates this same record
+   * rather than writing a second one.
+   */
+  const [savedId, setSavedId] = useState<string | null>(null);
+  /**
+   * Which content lineage this audit belongs to: "new" for a fresh piece, or
+   * the id of the lineage it revises. Chosen before the audit runs, because
+   * the record is saved the instant it finishes.
+   */
+  const [lineageChoice, setLineageChoice] = useState<string>("new");
+
+  /** Existing lineages, for the "new version of" picker. */
+  const lineages = useMemo(() => lineagesOf(audits), [audits]);
 
   const wordCount = useMemo(() => words(text), [text]);
 
@@ -78,7 +108,42 @@ export function AuditStudio({
     setSeverityFilter("all");
     setStale(false);
     setSubmittedId(null);
+    setSavedId(null);
     setError(null);
+  };
+
+  /**
+   * Writes a finished audit to history immediately, as a draft.
+   *
+   * Called only on the success path: a failed or abandoned audit must never
+   * appear in history as though it completed. The content is stored exactly as
+   * audited, because the findings were computed against it.
+   */
+  const persistCompleted = (source: string, completed: AuditOutcome) => {
+    const id = newAuditId();
+    const lineageId = lineageChoice === "new" ? newLineageId() : lineageChoice;
+    saveAudit({
+      id,
+      title: title.trim() || "Untitled submission",
+      channel,
+      text: source,
+      outcome: completed,
+      createdAt: new Date().toISOString(),
+      status: "draft",
+      reviewedAt: null,
+      reviewNote: null,
+      lineageId,
+      version: nextVersionFor(audits, lineageId),
+      contentHash: contentHashOf(source),
+      // What the reviewer was told, so a later comparison can tell a rewrite
+      // from a change to the rules themselves.
+      brandHash: brandHashOf(brand),
+      owner: session ? { email: session.email, name: session.name } : undefined,
+    });
+    setSavedId(id);
+    // A new version joins the lineage it revised, so the next run after this
+    // one continues the same thread rather than starting a new one.
+    if (lineageChoice === "new") setLineageChoice(lineageId);
   };
 
   /**
@@ -111,7 +176,7 @@ export function AuditStudio({
         return;
       }
 
-      setOutcome({
+      const completed: AuditOutcome = {
         findings: data.findings as Finding[],
         counts: data.counts as Record<Severity, number>,
         score: data.score as number,
@@ -127,7 +192,10 @@ export function AuditStudio({
           totalMs: Math.round(performance.now() - startedAt),
         },
         usage: data.usage as AuditOutcome["usage"],
-      });
+      };
+      setOutcome(completed);
+      // Only here, on the success path: a failed audit is never history.
+      persistCompleted(source, completed);
     } catch (caught) {
       setOutcome(null);
       const aborted =
@@ -157,7 +225,7 @@ export function AuditStudio({
   const runLocalAudit = (source: string) => {
     resetForRun();
     const result = auditContent(source, brand);
-    setOutcome({
+    const completed: AuditOutcome = {
       findings: result.findings,
       counts: result.counts,
       score: result.score,
@@ -167,7 +235,11 @@ export function AuditStudio({
       model: null,
       summary: null,
       unlocated: 0,
-    });
+    };
+    setOutcome(completed);
+    // A completed rule check is still a completed audit, and `engine` keeps it
+    // distinguishable from an AI one everywhere it is shown.
+    persistCompleted(source, completed);
   };
 
   const applyFix = (findingId: string) => {
@@ -228,27 +300,37 @@ export function AuditStudio({
       ? outcome.findings.filter((f) => f.severity === severityFilter)
       : (outcome?.findings ?? []);
 
+  /**
+   * Sends the already-saved audit for review.
+   *
+   * This UPDATES the record written when the audit finished — it never creates
+   * a second one, so the id, timestamp, content and lineage all survive. The
+   * outcome is refreshed to the reviewer's working set, so findings dismissed
+   * above are reflected in what the approver sees.
+   *
+   * Blocked while the draft is stale: the stored content is the text the
+   * findings were computed against, and submitting an edited draft under those
+   * findings would describe content that no longer exists.
+   */
   const submitForReview = () => {
-    if (!outcome) return;
-    const id = newAuditId();
-    saveAudit({
-      id,
-      title: title.trim() || "Untitled submission",
-      channel,
-      text,
-      outcome: {
-        ...outcome,
-        findings: liveFindings,
-        counts: liveCounts,
-        score: liveScore,
-        scoreRationale: liveRationale,
-      },
-      createdAt: new Date().toISOString(),
-      status: "in-review",
-      reviewedAt: null,
-      reviewNote: null,
+    if (!outcome || !savedId || stale) return;
+    const result = submitAudit(savedId, {
+      ...outcome,
+      findings: liveFindings,
+      counts: liveCounts,
+      score: liveScore,
+      scoreRationale: liveRationale,
     });
-    setSubmittedId(id);
+    if (result === "not-found") {
+      setError({
+        code: "missing-record",
+        message:
+          "This audit is no longer in your history, so it could not be submitted.",
+        hint: "History keeps the 50 most recent audits. Run the audit again to submit it.",
+      });
+      return;
+    }
+    setSubmittedId(savedId);
   };
 
   return (
@@ -370,6 +452,44 @@ export function AuditStudio({
                   </select>
                 </label>
               </div>
+
+              {/*
+                Version lineage, chosen BEFORE the audit runs, because the
+                record is written the moment it finishes. Never inferred from
+                the title: titles are free text, so matching on them would pair
+                unrelated drafts and break the moment one was renamed.
+              */}
+              <label className="block">
+                <span className="mb-1.5 block text-[0.7rem] font-medium uppercase tracking-[0.14em] text-foreground-muted">
+                  Content version
+                </span>
+                <select
+                  value={lineageChoice}
+                  onChange={(e) => setLineageChoice(e.target.value)}
+                  /*
+                   * Locked while an audit runs. The record is saved with the
+                   * lineage selected when the run STARTED, so leaving this
+                   * editable would let the control disagree with what was
+                   * actually stored.
+                   */
+                  disabled={running}
+                  className="w-full rounded-md border border-border bg-background-secondary px-3.5 py-2.5 text-sm text-foreground transition-colors duration-200 hover:border-silver/25 focus:border-accent/60 focus:outline-none disabled:opacity-60"
+                >
+                  <option value="new">New content</option>
+                  {lineages.map((lineage) => (
+                    <option key={lineage.id} value={lineage.id}>
+                      New version of: {lineage.title} (v
+                      {versionOf(lineage.latest)}, scored{" "}
+                      {lineage.latest.outcome.score})
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1.5 block text-xs leading-relaxed text-foreground-muted">
+                  {lineageChoice === "new"
+                    ? "This audit starts its own version history."
+                    : "This audit is saved as the next version, so it can be compared against the one before it."}
+                </span>
+              </label>
 
               <label className="block">
                 <span className="mb-1.5 block text-[0.7rem] font-medium uppercase tracking-[0.14em] text-foreground-muted">
@@ -515,6 +635,26 @@ export function AuditStudio({
             </Panel>
           ) : null}
 
+          {/*
+            Storage is now written on every completed audit, so a failure here
+            means history is quietly not being kept. Say so rather than let the
+            user believe their work is saved.
+          */}
+          {!storage.persisted && storage.error ? (
+            <Panel className="border-critical/40">
+              <PanelBody className="flex items-start gap-3">
+                <AlertIcon
+                  width={16}
+                  height={16}
+                  className="mt-0.5 shrink-0 text-critical"
+                />
+                <p className="text-sm leading-relaxed text-critical">
+                  {storage.error}
+                </p>
+              </PanelBody>
+            </Panel>
+          ) : null}
+
           {outcome ? (
             <>
               {/* Score summary */}
@@ -633,10 +773,17 @@ export function AuditStudio({
                         <CheckIcon width={16} height={16} />
                         Submitted for review.
                       </p>
+                    ) : stale ? (
+                      <p className="text-xs leading-relaxed text-accent">
+                        The draft has changed since this audit ran. Re-run it
+                        before submitting, so the review matches the words on
+                        screen.
+                      </p>
                     ) : (
                       <p className="text-xs leading-relaxed text-foreground-muted">
-                        Submitting saves this audit to the Approval Workspace, in
-                        this browser.
+                        {savedId
+                          ? "Saved to audit history already. Submitting sends this same record for approval."
+                          : "Submitting sends this audit for approval."}
                       </p>
                     )}
                     <div className="flex flex-wrap items-start gap-3">
@@ -669,7 +816,11 @@ export function AuditStudio({
                           <ArrowRightIcon width={15} height={15} />
                         </ButtonLink>
                       ) : (
-                        <Button size="sm" onClick={submitForReview}>
+                        <Button
+                          size="sm"
+                          disabled={stale || !savedId}
+                          onClick={submitForReview}
+                        >
                           Submit for review
                         </Button>
                       )}

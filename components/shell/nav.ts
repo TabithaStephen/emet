@@ -4,6 +4,7 @@ import {
   AuditIcon,
   CommandIcon,
   DnaIcon,
+  HistoryIcon,
   ImageIcon,
   InsightsIcon,
 } from "@/components/icons";
@@ -45,6 +46,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Approval Workspace",
     description: "Human sign-off on flagged content",
     icon: ApprovalIcon,
+  },
+  {
+    href: "/history",
+    label: "Audit History",
+    description: "Every audit run, and how versions compare",
+    icon: HistoryIcon,
   },
   {
     href: "/insights",

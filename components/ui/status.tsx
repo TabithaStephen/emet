@@ -1,6 +1,15 @@
-import type { AuditStatus } from "@/lib/types";
+import type { ReviewStatus } from "@/lib/types";
 
-const STATUS: Record<AuditStatus, { label: string; className: string }> = {
+/**
+ * Keyed by `ReviewStatus`, which is `AuditStatus` plus `draft`. Existing
+ * callers pass the narrower type, so they are unaffected.
+ */
+const STATUS: Record<ReviewStatus, { label: string; className: string }> = {
+  draft: {
+    // "Not submitted" says what it means to a reader; "draft" sounds unfinished.
+    label: "Not submitted",
+    className: "border-silver/25 text-foreground-muted",
+  },
   approved: {
     label: "Approved",
     className: "border-positive/35 text-positive",
@@ -15,7 +24,7 @@ const STATUS: Record<AuditStatus, { label: string; className: string }> = {
   },
 };
 
-export function StatusPill({ status }: { status: AuditStatus }) {
+export function StatusPill({ status }: { status: ReviewStatus }) {
   const { label, className } = STATUS[status];
   return (
     <span

@@ -26,13 +26,24 @@ const STATUS_COPY: Record<ReviewStatus, string> = {
 };
 
 export default function ApprovalsPage() {
-  const audits = useAudits();
+  const stored = useAudits();
   const [filter, setFilter] = useState<ReviewStatus | "all">("in-review");
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
+  /*
+   * Only submitted work belongs in the approval queue.
+   *
+   * Every completed audit is now saved to history automatically, including
+   * ones the author never sent for review. Those are drafts: showing them here
+   * would put work nobody submitted in front of an approver. They remain
+   * visible, with their findings, in Audit History.
+   */
+  const audits = stored.filter((a) => a.status !== "draft");
+
   const visible = audits.filter((a) => (filter === "all" ? true : a.status === filter));
   const pendingCount = audits.filter((a) => a.status === "in-review").length;
+  const draftCount = stored.length - audits.length;
 
   const requestChanges = (id: string) => {
     setAuditStatus(id, "changes-requested", note.trim() || null);
@@ -49,7 +60,10 @@ export default function ApprovalsPage() {
         action={
           audits.length > 0 ? (
             <span className="text-xs text-foreground-muted">
-              {audits.length} saved audit{audits.length === 1 ? "" : "s"}
+              {audits.length} submitted audit{audits.length === 1 ? "" : "s"}
+              {draftCount > 0
+                ? ` · ${draftCount} not submitted, in history`
+                : ""}
             </span>
           ) : null
         }
