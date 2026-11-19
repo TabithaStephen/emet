@@ -4,23 +4,44 @@ export type Severity = "critical" | "high" | "medium" | "low";
 
 export const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low"];
 
+/**
+ * Written labels for each severity.
+ *
+ * Domain data, so it lives here rather than in a component: severity never
+ * travels on colour alone, and the PDF report needs these labels without
+ * pulling a React module in. `components/ui/severity` re-exports it, so every
+ * existing import carries on working unchanged.
+ */
+export const SEVERITY_LABEL: Record<Severity, string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
 export interface TerminologyRule {
   id: string;
   avoid: string;
   prefer: string;
   note: string;
+  /** Set when the rule came from an imported document, for provenance. */
+  sourceDoc?: string;
 }
 
 export interface ProhibitedClaim {
   id: string;
   phrase: string;
   reason: string;
+  /** Set when the claim came from an imported document, for provenance. */
+  sourceDoc?: string;
 }
 
 export interface ApprovedFact {
   id: string;
   statement: string;
   source: string;
+  /** Set when the fact came from an imported document, for provenance. */
+  sourceDoc?: string;
 }
 
 export interface BrandIdentity {
@@ -43,6 +64,49 @@ export interface BrandMessaging {
   boilerplate: string;
 }
 
+/* ---- imported brand documents ----------------------------------------- */
+
+/** Which part of the Brand DNA an extracted rule belongs to. */
+export type ExtractedRuleKind =
+  | "voice"
+  | "tone"
+  | "terminology"
+  | "prohibited-claim"
+  | "approved-fact"
+  | "messaging"
+  | "visual";
+
+/**
+ * One rule Gemini read out of an uploaded brand document.
+ *
+ * `sourceQuote` is the verbatim line it came from. It is never editable: the
+ * reviewer may rewrite the rule, but the evidence it rests on stays as the
+ * document wrote it, so a rule can always be traced back.
+ */
+export interface ExtractedRule {
+  id: string;
+  kind: ExtractedRuleKind;
+  summary: string;
+  sourceQuote: string;
+  page: number | null;
+  /** Terminology only: the discouraged term and its approved replacement. */
+  avoid?: string;
+  prefer?: string;
+  /** Name of the document it came from. Set once the rule is accepted. */
+  sourceDoc?: string;
+}
+
+/** A document that has been imported, kept for provenance. The file itself is never stored. */
+export interface BrandDocument {
+  id: string;
+  name: string;
+  bytes: number;
+  pages: number | null;
+  importedAt: string;
+  /** How many rules from this document were accepted into the Brand DNA. */
+  acceptedRules: number;
+}
+
 export interface BrandProfile {
   identity: BrandIdentity;
   voice: BrandVoice;
@@ -50,6 +114,17 @@ export interface BrandProfile {
   messaging: BrandMessaging;
   prohibitedClaims: ProhibitedClaim[];
   approvedFacts: ApprovedFact[];
+  /**
+   * Accepted rules with no native home above — voice, tone, messaging and
+   * visual guidance read out of uploaded documents.
+   *
+   * Top-level on purpose: `brand-store` merges a stored profile over
+   * `DEMO_BRAND` shallowly, so a new top-level key picks up its default for
+   * anyone whose saved profile predates it, while a new nested key would not.
+   */
+  importedRules: ExtractedRule[];
+  /** Documents imported into this profile, newest first. */
+  documents: BrandDocument[];
 }
 
 /** One issue found in a piece of content. */

@@ -99,6 +99,9 @@ export const NOVATECH_BRAND: BrandProfile = {
       source: "Public status page",
     },
   ],
+  // The guided demo imports no documents; these keep the shape complete.
+  importedRules: [],
+  documents: [],
 };
 
 /** The draft a NovaTech marketer might write. Deliberately non-compliant. */

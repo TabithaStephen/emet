@@ -1,11 +1,12 @@
-import type { Severity } from "@/lib/types";
+import { SEVERITY_LABEL, type Severity } from "@/lib/types";
 
-export const SEVERITY_LABEL: Record<Severity, string> = {
-  critical: "Critical",
-  high: "High",
-  medium: "Medium",
-  low: "Low",
-};
+/**
+ * Re-exported from `lib/types`, where it now lives so non-React code — the PDF
+ * report builder — can use it too. Kept exported here so existing imports of
+ * `@/components/ui/severity` are unaffected, and so it stays in local scope
+ * for the badge below.
+ */
+export { SEVERITY_LABEL };
 
 /**
  * Severity colours: coral, champagne, sapphire, emerald.

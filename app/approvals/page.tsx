@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ExportReportButton } from "@/components/audit/export-report-button";
 import { ButtonLink, Button } from "@/components/ui/button";
 import { DemoTag, Meter } from "@/components/ui/data";
 import { PageHeader } from "@/components/ui/page-header";
@@ -222,7 +223,8 @@ export default function ApprovalsPage() {
                             ? ` Decided ${timeAgo(audit.reviewedAt)}.`
                             : ""}
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-start gap-2">
+                          <ExportReportButton audit={audit} variant="ghost" label="Export PDF" />
                           {audit.status === "in-review" ? (
                             <>
                               <Button

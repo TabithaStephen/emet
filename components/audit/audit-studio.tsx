@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ExportReportButton } from "@/components/audit/export-report-button";
 import { FindingCard } from "@/components/audit/finding-card";
 import { HighlightedContent } from "@/components/audit/highlighted-content";
 import { ScoreDial } from "@/components/charts/score-dial";
@@ -638,7 +639,30 @@ export function AuditStudio({
                         this browser.
                       </p>
                     )}
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap items-start gap-3">
+                      {/*
+                        Exports exactly what is on screen, including any
+                        findings dismissed above — the live set, not the raw
+                        audit — so the report matches what the reviewer sees.
+                      */}
+                      <ExportReportButton
+                        audit={{
+                          title: title.trim() || "Untitled submission",
+                          channel,
+                          text,
+                          outcome: {
+                            ...outcome,
+                            findings: liveFindings,
+                            counts: liveCounts,
+                            score: liveScore,
+                            scoreRationale: liveRationale,
+                          },
+                          createdAt: new Date().toISOString(),
+                          status: submittedId ? "in-review" : "draft",
+                          reviewedAt: null,
+                          reviewNote: null,
+                        }}
+                      />
                       {submittedId ? (
                         <ButtonLink href="/approvals" variant="secondary" size="sm">
                           Open Approval Workspace

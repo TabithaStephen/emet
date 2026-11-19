@@ -113,3 +113,26 @@ export const ImageIcon = (p: IconProps) => (
     <path d="M21 16l-5-5-5 5-2-2-6 6" />
   </Icon>
 );
+
+export const DocumentIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z" />
+    <path d="M14 3v5h5" />
+    <path d="M9 13h6M9 17h4" />
+  </Icon>
+);
+
+export const UploadIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 16V4" />
+    <path d="M8 8l4-4 4 4" />
+    <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+  </Icon>
+);
+
+export const UndoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 10h12a5 5 0 0 1 0 10h-4" />
+    <path d="M7 6l-4 4 4 4" />
+  </Icon>
+);

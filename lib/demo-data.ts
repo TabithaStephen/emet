@@ -110,6 +110,8 @@ export const DEMO_BRAND: BrandProfile = {
       source: "Transparency policy §2",
     },
   ],
+  importedRules: [],
+  documents: [],
 };
 
 export const DEMO_AUDITS: AuditRecord[] = [
