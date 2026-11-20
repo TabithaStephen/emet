@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { HighlightedContent } from "@/components/audit/highlighted-content";
+import { ReadinessPanel } from "@/components/social/readiness-panel";
 import { ExportReportButton } from "@/components/audit/export-report-button";
 import { ScoreDial } from "@/components/charts/score-dial";
 import { SeverityDistribution } from "@/components/charts/severity-distribution";
@@ -257,6 +258,13 @@ export function HistoryDetail() {
           </div>
         ) : null}
       </Panel>
+
+      {/*
+        Platform readiness, when this record came from the Social Studio.
+        Rendered as its own panel so it is never confused with the brand
+        findings above, and simply absent on every other audit.
+      */}
+      {outcome.platform ? <ReadinessPanel readiness={outcome.platform} /> : null}
 
       {/* Content as audited */}
       <Panel>

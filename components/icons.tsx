@@ -144,3 +144,10 @@ export const HistoryIcon = (p: IconProps) => (
     <path d="M12 7v5l3 2" />
   </Icon>
 );
+
+export const SocialIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 5h16v11H7l-3 3V5z" />
+    <path d="M8 9h8M8 12.5h5" />
+  </Icon>
+);

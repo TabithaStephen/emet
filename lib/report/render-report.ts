@@ -441,6 +441,68 @@ export async function renderAuditReport(model: ReportModel): Promise<Blob> {
     { size: 7.5, colour: ctx.palette.foregroundMuted },
   );
 
+  /*
+   * Platform readiness, when the audit came from the Social Studio.
+   *
+   * Its own section with its own score, because it is a different claim about
+   * a different thing; merging it with the compliance score would misrepresent
+   * both. Only sections with something to say are drawn.
+   */
+  if (model.platform) {
+    const readiness = model.platform;
+    sectionHeading(ctx, "Platform readiness", `${readiness.platformLabel} requirements`);
+
+    paragraph(
+      ctx,
+      readiness.score === null
+        ? `No readiness score: ${readiness.platformLabel} publishes no requirements \u00eamet can verify.`
+        : `${readiness.score}% ready \u2014 ${readiness.passed} of ${readiness.passed + readiness.failed} documented requirements met.`,
+      { size: 10, colour: ctx.palette.foreground },
+    );
+    paragraph(ctx, readiness.scoreRationale, {
+      size: 7.5,
+      colour: ctx.palette.foregroundMuted,
+    });
+    ctx.y += 2;
+
+    for (const check of readiness.checks) {
+      ensure(ctx, 16);
+      const tone =
+        check.state === "pass"
+          ? ctx.palette.positive
+          : check.state === "fail"
+            ? ctx.palette.critical
+            : ctx.palette.silver;
+
+      paragraph(
+        ctx,
+        `${check.state.toUpperCase()}  ${check.label}: ${check.measured}${check.expected ? ` (expected ${check.expected})` : ""}${check.scored ? "" : "  [not scored]"}`,
+        { size: 8.5, colour: tone, x: MARGIN + 4, width: CONTENT_W - 8 },
+      );
+      paragraph(ctx, check.explanation, {
+        size: 7.5,
+        colour: ctx.palette.foregroundMuted,
+        x: MARGIN + 4,
+        width: CONTENT_W - 8,
+      });
+      if (check.source) {
+        paragraph(ctx, `Source: ${check.source.title} (checked ${check.source.verifiedOn})`, {
+          size: 7,
+          colour: ctx.palette.foregroundMuted,
+          x: MARGIN + 4,
+          width: CONTENT_W - 8,
+        });
+      }
+      ctx.y += 2;
+    }
+
+    paragraph(
+      ctx,
+      "Platform readiness is measured arithmetic against each platform's published specification. It is separate from the brand compliance score above, and only requirements a platform documents can affect it.",
+      { size: 7, colour: ctx.palette.foregroundMuted },
+    );
+  }
+
   /* The submitted content, in full, exactly as audited. */
   sectionHeading(ctx, "Appendix", "Content as submitted");
   paragraph(ctx, model.content || "(no content recorded)", {

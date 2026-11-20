@@ -206,6 +206,19 @@ export interface AuditOutcome {
     thoughtTokens: number | null;
     thinkingLevel: string;
   };
+  /**
+   * Platform readiness, when the audit came from the Social Studio.
+   *
+   * Deliberately OUTSIDE `findings`. A caption being forty characters too long
+   * for Instagram is not a breach of the organisation's brand guidelines, and
+   * letting it into that array would put it in the severity counts, the
+   * compliance score and the "most violated guidelines" ranking — three places
+   * it does not belong. The two assessments stay separate everywhere.
+   *
+   * Optional: every audit stored before this feature existed has no such
+   * field, and must keep loading and rendering exactly as before.
+   */
+  platform?: PlatformReadiness;
 }
 
 export type ReviewStatus =
@@ -264,6 +277,84 @@ export interface SavedAudit {
   brandHash?: string;
   /** Who ran the audit, when a session was present. */
   owner?: { email: string; name: string };
+}
+
+/* ---- social platform readiness ----------------------------------------- */
+
+export type SocialPlatform = "instagram" | "linkedin" | "facebook";
+
+/**
+ * How much authority a platform rule carries.
+ *
+ * `documented` — stated in the platform's own primary developer documentation,
+ * with the URL and the date it was checked. Only these may fail a check or
+ * move the readiness score.
+ *
+ * `advisory` — widely followed convention that the platform does NOT publish.
+ * Shown with the measurement so it is still useful, labelled as unofficial,
+ * and deliberately unable to affect the score. LinkedIn and Facebook document
+ * no caption limits at all, so almost everything known about them is of this
+ * kind, and presenting it as fact would be inventing platform rules.
+ */
+export type RuleConfidence = "documented" | "advisory";
+
+export interface RuleSource {
+  title: string;
+  url: string;
+  /** ISO date this project last read the page. */
+  verifiedOn: string;
+  /** Anything the source leaves ambiguous, stated rather than smoothed over. */
+  caveat?: string;
+}
+
+export interface PlatformCheck {
+  id: string;
+  label: string;
+  /**
+   * `pass`/`fail` for a documented requirement that was measured;
+   * `info` for a measurement with no enforceable rule behind it.
+   */
+  state: "pass" | "fail" | "info";
+  /** What was measured, in words. */
+  measured: string;
+  /** The requirement, or null when the platform publishes none. */
+  expected: string | null;
+  confidence: RuleConfidence | "none";
+  explanation: string;
+  suggestion: string | null;
+  source: RuleSource | null;
+  /** True only when this check counted toward the readiness score. */
+  scored: boolean;
+}
+
+/** Facts read from a creative in the browser. The file itself is never stored. */
+export interface CreativeInspection {
+  name: string;
+  mimeType: string;
+  bytes: number;
+  width: number;
+  height: number;
+  /** width ÷ height, rounded to three decimals. */
+  aspectRatio: number;
+}
+
+export interface PlatformReadiness {
+  platform: SocialPlatform;
+  platformLabel: string;
+  checks: PlatformCheck[];
+  /**
+   * Percentage of scored checks that passed, or null when the platform
+   * publishes no requirements this tool can check. Null is reported as
+   * "not applicable", never as zero.
+   */
+  score: number | null;
+  /** The arithmetic, in words, naming the checks that counted. */
+  scoreRationale: string;
+  passed: number;
+  failed: number;
+  advisories: number;
+  creative: CreativeInspection | null;
+  checkedAt: string;
 }
 
 /* ---- visual brand compliance ------------------------------------------ */

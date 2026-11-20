@@ -1,6 +1,7 @@
 import {
   SEVERITY_LABEL,
   SEVERITY_ORDER,
+  type PlatformReadiness,
   type SavedAudit,
   type Severity,
 } from "@/lib/types";
@@ -53,6 +54,11 @@ export interface ReportModel {
   generatedAtLabel: string;
   /** Suggested download name. */
   fileName: string;
+  /**
+   * Platform readiness, when the audit came from the Social Studio.
+   * Absent on every other audit, and never merged into the findings above.
+   */
+  platform: PlatformReadiness | null;
 }
 
 const STATUS_LABEL: Record<SavedAudit["status"], string> = {
@@ -163,6 +169,7 @@ export function buildReportModel(
     content: audit.text,
     unlocated: outcome.unlocated,
     generatedAtLabel: formatDateTime(now.toISOString()),
+    platform: outcome.platform ?? null,
     fileName: `emet-audit-${slug(audit.title)}-${now.toISOString().slice(0, 10)}.pdf`,
   };
 }

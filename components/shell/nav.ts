@@ -7,6 +7,7 @@ import {
   HistoryIcon,
   ImageIcon,
   InsightsIcon,
+  SocialIcon,
 } from "@/components/icons";
 
 export interface NavItem {
@@ -34,6 +35,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "AI Audit Studio",
     description: "Review content against the brand rules",
     icon: AuditIcon,
+  },
+  {
+    href: "/social",
+    label: "Social Readiness",
+    description: "Caption and creative, checked before it goes out",
+    icon: SocialIcon,
   },
   {
     href: "/visual",
